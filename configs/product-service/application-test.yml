@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://test-postgres.etiya.com:5432/productdb
+    url: jdbc:postgresql://localhost:5433/productdb
     driver-class-name: org.postgresql.Driver
     username: postgres
     password: postgres
@@ -8,9 +8,9 @@ spring:
     stream:
       kafka:
         binder:
-          brokers: test-kafka.etiya.com:9092
+          brokers: localhost:9092
 
 eureka:
   client:
     service-url:
-      defaultZone: http://test-eureka.etiya.com/eureka/
+      defaultZone: http://localhost:8761/eureka/
