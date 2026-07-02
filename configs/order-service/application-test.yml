@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://test-postgres.etiya.com:5432/orderdb
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: postgres
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://test-eureka.etiya.com/eureka/

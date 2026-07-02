@@ -1,0 +1,14 @@
+# PostgreSQL backing the Transactional Outbox table. Debezium reads this database's
+# WAL directly (CDC) and publishes new outbox_events rows to Kafka - order-service
+# itself no longer talks to Kafka at all.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/orderdb
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: postgres
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

@@ -1,0 +1,33 @@
+server:
+  port: 8888
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # Gelen tüm /api/products istekleri product-service'e yönlendirilir.
+            # lb:// şeması: hedef adres Eureka'dan çözülür ve load balancing uygulanır.
+            - id: product-service
+              uri: lb://product-service
+              predicates:
+                - Path=/api/products/**
+            - id: order-service
+              uri: lb://order-service
+              predicates:
+                - Path=/api/orders/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+
+eureka:
+  client:
+    register-with-eureka: true # gateway kendini Eureka'ya kaydeder
+    fetch-registry: true # diğer servislerin (product-service) konumlarını Eureka'dan çeker
+  instance:
+    instance-id: ${spring.application.name}:${random.uuid}
+    prefer-ip-address: true
