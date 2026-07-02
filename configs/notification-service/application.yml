@@ -1,0 +1,45 @@
+server:
+  port: 0
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  cloud:
+    function:
+      definition: orderCreated;paymentCreated;productStockUpdated
+    stream:
+      bindings:
+        # Consumer-only service - no outbox, no producer bindings. Each input reads a topic
+        # published by another service's Debezium outbox connector.
+        orderCreated-in-0:
+          destination: order-created
+          group: notification-service
+          content-type: application/json # Debezium doesn't set a contentType header
+        paymentCreated-in-0:
+          destination: payment-created
+          group: notification-service
+          content-type: application/json
+        productStockUpdated-in-0:
+          destination: product-stock-updated
+          group: notification-service
+          content-type: application/json
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+eureka:
+  client:
+    register-with-eureka: true # kendini ayağa kalktığın an eurekaya tanıt
+    fetch-registry: true # istenildiğinde diğer servislerin bilgisini çek
+  instance:
+    instance-id: ${spring.application.name}:${random.uuid}
+    prefer-ip-address: true
