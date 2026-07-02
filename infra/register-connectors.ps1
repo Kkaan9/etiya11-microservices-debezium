@@ -1,6 +1,6 @@
-# Registers the Debezium outbox connectors (order + product) against the Kafka Connect
-# REST API. Run this once after `podman compose -f podman-compose.yml up -d` and the
-# kafka-connect container has finished starting.
+# Registers the Debezium outbox connectors (order + product + payment) against the Kafka
+# Connect REST API. Run this once after `podman compose -f podman-compose.yml up -d` and
+# the kafka-connect container has finished starting.
 #
 # Usage:
 #   cd infra
@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 
 $connectUrl = "http://localhost:8083"
 $connectorDir = Join-Path $PSScriptRoot "debezium"
-$connectorFiles = @("order-outbox-connector.json", "product-outbox-connector.json")
+$connectorFiles = @("order-outbox-connector.json", "product-outbox-connector.json", "payment-outbox-connector.json")
 
 Write-Host "Waiting for Kafka Connect at $connectUrl ..."
 $maxAttempts = 30

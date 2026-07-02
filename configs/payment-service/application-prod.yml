@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres.etiya.com:5432/paymentdb
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: postgres
+  cloud:
+    stream:
+      kafka:
+        binder:
+          brokers: kafka.etiya.com:9092
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka.etiya.com/eureka/
