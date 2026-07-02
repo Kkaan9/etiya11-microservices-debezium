@@ -1,0 +1,129 @@
+# Etiya11 Microservices - Altyapı (Infrastructure) Compose Dosyası
+#
+# Çalıştırmak için:
+#   cd infra
+#   podman compose -f podman-compose.yml up -d
+#   .\register-connectors.ps1   # Debezium connector'larını Kafka Connect'e kaydeder
+#
+# Durdurmak için:
+#   podman compose -f podman-compose.yml down
+#
+# Volume'lerle birlikte tamamen silmek için:
+#   podman compose -f podman-compose.yml down -v
+
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL veritabanı
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: etiya-postgres
+    restart: unless-stopped
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: productdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Creates the additional "orderdb" database on first init (productdb already
+      # created via POSTGRES_DB above). Required so CDC (Debezium) has a WAL to read
+      # per service's own outbox table.
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d productdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
+  # Adminer (web-based PostgreSQL viewer, e.g. for inspecting outbox_events)
+  # ---------------------------------------------------------------------------
+  adminer:
+    image: docker.io/library/adminer:latest
+    container_name: etiya-adminer
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "8081:8080"
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
+  # Debezium Kafka Connect (CDC: reads outbox_events via Postgres logical
+  # replication and publishes straight to Kafka, replacing the polling relay).
+  # ---------------------------------------------------------------------------
+  kafka-connect:
+    image: quay.io/debezium/connect:2.7
+    container_name: etiya-kafka-connect
+    restart: unless-stopped
+    depends_on:
+      - kafka
+      - postgres
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: etiya-connect
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
+  # Apache Kafka (KRaft modu - Zookeeper'a ihtiyaç duymaz)
+  # ---------------------------------------------------------------------------
+  kafka:
+    image: docker.io/apache/kafka:3.7.0
+    container_name: etiya-kafka
+    restart: unless-stopped
+    ports:
+      # Host (uygulamalar) için dış erişim portu
+      - "9092:9092"
+    environment:
+      # --- KRaft (broker + controller aynı node) ---
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # --- Listener tanımları ---
+      # PLAINTEXT: container ağı içinden erişim (kafka:29092)
+      # PLAINTEXT_HOST: host makineden erişim (localhost:9092)
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # --- Tek node için replikasyon ayarları ---
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+      # --- Veri ve cluster ayarları ---
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: etiya-kafka-cluster-001
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - etiya-net
+
+volumes:
+  postgres-data:
+  kafka-data:
+
+networks:
+  etiya-net:
+    driver: bridge
