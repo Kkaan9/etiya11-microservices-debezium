@@ -82,6 +82,25 @@ services:
       - etiya-net
 
   # ---------------------------------------------------------------------------
+  # Keycloak (Identity/Access Management) - şimdilik sadece ayağa kaldırmak için;
+  # servislerle entegrasyonu (realm/client/security config) ayrı bir iş.
+  # Dev mode: embedded H2, kalıcı volume yok - container silinince veriler gider.
+  # Admin konsolu: http://localhost:8180 (kullanıcı: admin / şifre: admin)
+  # ---------------------------------------------------------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: etiya-keycloak
+    restart: unless-stopped
+    command: ["start-dev"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8180:8080"
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
   # Apache Kafka (KRaft modu - Zookeeper'a ihtiyaç duymaz)
   # ---------------------------------------------------------------------------
   kafka:
