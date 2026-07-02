@@ -6,6 +6,11 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: postgres
     password: postgres
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/etiya-crm-project
   cloud:
     stream:
       kafka:
