@@ -67,6 +67,7 @@ services:
     depends_on:
       - kafka
       - postgres
+      - mysql
     ports:
       - "8083:8083"
     environment:
@@ -97,6 +98,30 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
     ports:
       - "8180:8080"
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
+  # MySQL veritabanı (order-service). Binlog ayarları Debezium MySQL connector'ünün
+  # CDC yapabilmesi için zorunlu (log-bin, ROW format, GTID).
+  # ---------------------------------------------------------------------------
+  mysql:
+    image: docker.io/library/mysql:8.0
+    container_name: etiya-mysql
+    restart: unless-stopped
+    command: ["--server-id=1", "--log-bin=mysql-bin", "--binlog-format=ROW", "--binlog-row-image=FULL", "--gtid-mode=ON", "--enforce-gtid-consistency=ON"]
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orderdb
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - etiya-net
 
@@ -141,6 +166,7 @@ services:
 
 volumes:
   postgres-data:
+  mysql-data:
   kafka-data:
 
 networks:

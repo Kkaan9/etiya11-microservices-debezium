@@ -1,13 +1,24 @@
 package com.etiya.orderservice.entities;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.math.BigDecimal;
 
 /**
- * Domain entity. Persistence is in-memory for now; later this can be mapped to a DB table.
+ * Domain entity, persisted to MySQL.
  */
+@Entity
+@Table(name = "orders")
 public class Order {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
+
     private int customerId;
     private int productId;
     private int quantity;

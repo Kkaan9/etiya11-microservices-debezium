@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: jdbc:postgresql://postgres.etiya.com:5432/orderdb
-    driver-class-name: org.postgresql.Driver
-    username: postgres
-    password: postgres
+    url: jdbc:mysql://mysql.etiya.com:3306/orderdb
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
   security:
     oauth2:
       resourceserver:

@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/orderdb
-    driver-class-name: org.postgresql.Driver
-    username: postgres
-    password: postgres
+    url: jdbc:mysql://localhost:3307/orderdb
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
   security:
     oauth2:
       resourceserver:

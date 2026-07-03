@@ -1,12 +1,12 @@
-# PostgreSQL backing the Transactional Outbox table. Debezium reads this database's
-# WAL directly (CDC) and publishes new outbox_events rows to Kafka - order-service
+# MySQL backing the Transactional Outbox table. Debezium reads this database's
+# binlog directly (CDC) and publishes new outbox_events rows to Kafka - order-service
 # itself no longer talks to Kafka at all.
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/orderdb
-    driver-class-name: org.postgresql.Driver
-    username: postgres
-    password: postgres
+    url: jdbc:mysql://localhost:3307/orderdb
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
   security:
     oauth2:
       resourceserver:

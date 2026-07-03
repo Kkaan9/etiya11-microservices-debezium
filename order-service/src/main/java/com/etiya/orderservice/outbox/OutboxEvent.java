@@ -10,10 +10,10 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 /**
- * A message queued in the Transactional Outbox table (PostgreSQL).
+ * A message queued in the Transactional Outbox table (MySQL).
  *
  * <p>The business layer inserts a row here instead of publishing to Kafka directly. This table is
- * insert-only: Debezium captures each INSERT from the database's write-ahead log (CDC) and routes
+ * insert-only: Debezium captures each INSERT from the database's binlog (CDC) and routes
  * the {@link #payload} to the {@link #destination} Kafka topic via the Outbox Event Router SMT.
  * No application code ever reads or updates this table again after the insert - delivery state
  * lives in the Kafka Connect connector, not in this row.</p>
@@ -46,10 +46,11 @@ public class OutboxEvent {
     @Column(nullable = false, length = 4000)
     private String payload;
 
-    // Plain "timestamp" (no time zone), not "timestamptz": Debezium maps timestamptz columns to
-    // the STRING-based ZonedTimestamp logical type, but the outbox EventRouter SMT requires the
-    // event timestamp field to be an INT64 epoch value, which only the no-tz mapping produces.
-    @Column(nullable = false, columnDefinition = "TIMESTAMP")
+    // Hibernate maps LocalDateTime to MySQL's DATETIME by default, which Debezium's MySQL
+    // connector captures as an INT64 epoch value - exactly what the outbox EventRouter SMT
+    // requires for the event timestamp field, so no explicit column type override is needed here
+    // (unlike the Postgres-backed services, where TIMESTAMPTZ has to be avoided explicitly).
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     /** Required by JPA. */
