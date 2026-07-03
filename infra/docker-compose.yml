@@ -160,7 +160,7 @@ services:
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-
+      
       # --- Listener tanımları ---
       # PLAINTEXT: container ağı içinden erişim (kafka:29092)
       # PLAINTEXT_HOST: host makineden erişim (localhost:9092)
@@ -180,6 +180,142 @@ services:
       CLUSTER_ID: etiya-kafka-cluster-001
     volumes:
       - kafka-data:/var/lib/kafka/data
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
+  # Config Server (Spring Cloud Config - git-backed configuration for the other
+  # services; clones ../configs from the GitHub remote on startup, so it needs
+  # outbound internet access).
+  # ---------------------------------------------------------------------------
+  config-server:
+    build:
+      context: ..
+      dockerfile: config-server/Dockerfile
+    image: etiya/config-server
+    container_name: etiya-config-server
+    restart: unless-stopped
+    ports:
+      - "8071:8071"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8071/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
+  # Eureka Server (service discovery)
+  # ---------------------------------------------------------------------------
+  eureka-server:
+    build:
+      context: ..
+      dockerfile: eureka-server/Dockerfile
+    image: etiya/eureka-server
+    container_name: etiya-eureka-server
+    restart: unless-stopped
+    depends_on:
+      config-server:
+        condition: service_healthy
+    environment:
+      # Container-network hostname; localhost (the jar's bundled default) would
+      # resolve to this container itself, not the config-server container.
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8071
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
+  # Product Service
+  # ---------------------------------------------------------------------------
+  product-service:
+    build:
+      context: ..
+      dockerfile: product-service/Dockerfile
+    image: etiya/product-service
+    container_name: etiya-product-service
+    restart: unless-stopped
+    depends_on:
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8071
+      # application-local.yml (fetched from config-server) resolves everything
+      # below to "localhost", which inside this container means itself, not the
+      # other containers - override with container-network hostnames/ports.
+      # (5432/9092 are the services' internal ports; 5433/9092-host/6379 in
+      # other files are the host-mapped ports, not usable from inside the network.)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/productdb
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      # Keycloak (dev mode) stamps the JWT "iss" claim with whatever host:port the
+      # client used to request the token. Tokens are obtained from the host via
+      # localhost:8180, so issuer-uri must match that exact address or every token
+      # fails "iss claim is not valid" - but localhost from inside this container
+      # means itself, not Keycloak, so it can't also be used to fetch the JWKS.
+      # Setting jwk-set-uri separately (the container-network address) decouples
+      # the two: issuer-uri is only used to validate the "iss" claim, jwk-set-uri
+      # is only used to fetch the signing keys.
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8180/realms/etiya-crm-project
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/etiya-crm-project/protocol/openid-connect/certs
+      # server.port from config-server is 0 (random), meant for multiple scaled
+      # instances behind Eureka. Pinned to a fixed port here since this is a
+      # single instance meant to be reachable directly for testing.
+      SERVER_PORT: 8082
+    ports:
+      - "8082:8082"
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
+  # Gateway Server (Spring Cloud Gateway - single entry point, routes
+  # /api/products/**, /api/orders/**, etc. to the backing services via Eureka)
+  # ---------------------------------------------------------------------------
+  gateway-server:
+    build:
+      context: ..
+      dockerfile: gateway-server/Dockerfile
+    image: etiya/gateway-server
+    container_name: etiya-gateway-server
+    restart: unless-stopped
+    depends_on:
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8071
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     networks:
       - etiya-net
 
