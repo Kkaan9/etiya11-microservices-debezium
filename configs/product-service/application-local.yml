@@ -6,6 +6,10 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: postgres
     password: postgres
+  data:
+    redis:
+      host: localhost
+      port: 6379
   security:
     oauth2:
       resourceserver:

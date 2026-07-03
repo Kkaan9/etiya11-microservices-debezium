@@ -43,6 +43,25 @@ services:
       - etiya-net
 
   # ---------------------------------------------------------------------------
+  # Redis (distributed cache for product-service GET responses)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: etiya-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - etiya-net
+
+  # ---------------------------------------------------------------------------
   # Adminer (web-based PostgreSQL viewer, e.g. for inspecting outbox_events)
   # ---------------------------------------------------------------------------
   adminer:
@@ -168,6 +187,7 @@ volumes:
   postgres-data:
   mysql-data:
   kafka-data:
+  redis-data:
 
 networks:
   etiya-net:

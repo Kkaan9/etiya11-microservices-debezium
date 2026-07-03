@@ -5,6 +5,8 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,9 @@ import com.etiya.productservice.idempotency.ProcessedEvent;
 import com.etiya.productservice.idempotency.ProcessedEventRepository;
 import com.etiya.productservice.outbox.OutboxService;
 import com.etiya.productservice.repositories.ProductRepository;
+
+import static com.etiya.productservice.config.CacheConfig.PRODUCTS_CACHE;
+import static com.etiya.productservice.config.CacheConfig.PRODUCTS_LIST_CACHE;
 
 /**
  * Applies stock changes triggered by consumed order events and queues the resulting
@@ -56,6 +61,10 @@ public class ProductStockService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = PRODUCTS_CACHE, key = "#event.productId()"),
+            @CacheEvict(cacheNames = PRODUCTS_LIST_CACHE, allEntries = true)
+    })
     public void applyOrderCreated(OrderCreatedEvent event) {
         String sourceId = String.valueOf(event.orderId());
         if (processedEventRepository.existsByEventTypeAndSourceId(ORDER_CREATED_EVENT_TYPE, sourceId)) {
